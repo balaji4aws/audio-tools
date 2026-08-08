@@ -1,0 +1,12 @@
+# Audio files (samples / user media — not part of the app)
+*.m4a
+*.mp3
+*.wav
+*.aac
+*.ogg
+*.flac
+*.opus
+
+# OS / editor cruft
+.DS_Store
+*.log

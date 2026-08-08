@@ -1,0 +1,2372 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Clip &amp; Combine by VenkyB</title>
+  <style>
+    :root {
+      --bg: #0f1216;
+      --card: #181c22;
+      --card-2: #1f242c;
+      --line: #2a313b;
+      --text: #e7ecf2;
+      --muted: #9aa7b6;
+      --accent: #4c9aff;
+      --accent-2: #2f7ae5;
+      --ok: #33c27f;
+      --brand: #0d9488;
+      --brand-hover: #0f766e;
+      --brand-text: #5eead4;
+      --brand-soft: rgba(20, 184, 166, 0.16);
+      /* waveform (read by the canvas at draw time) */
+      --wave: #4c9aff;
+      --wave-dim: #39434f;
+      --playhead: #ff5c7a;
+      --marker: #000000;
+      --marker-halo: rgba(255, 255, 255, 0.85);
+      --region: rgba(76, 154, 255, 0.10);
+    }
+
+    [data-theme="light"] {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --card-2: #eef1f5;
+      --line: #d7dde5;
+      --text: #1b2430;
+      --muted: #5b6b7f;
+      --accent: #2f7ae5;
+      --accent-2: #1f5fc0;
+      --ok: #1ea672;
+      --brand: #0d9488;
+      --brand-hover: #0f766e;
+      --brand-text: #0f766e;
+      --brand-soft: rgba(13, 148, 136, 0.12);
+      --wave: #2f7ae5;
+      --wave-dim: #c2cdda;
+      --playhead: #e5484d;
+      --marker: #1b2430;
+      --marker-halo: rgba(255, 255, 255, 0.95);
+      --region: rgba(47, 122, 229, 0.12);
+    }
+
+    body {
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    /* visible keyboard focus for all interactive elements */
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    label:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    /* screen-reader-only (visually hidden but announced) */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 16px 80px;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .theme-toggle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      width: 38px;
+      height: 38px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--accent);
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 6px;
+    }
+
+    h1 .by {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.62em;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 16px;
+      margin: 0 0 24px;
+    }
+
+    .track {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 8px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    /* card highlight while this track is playing/paused */
+    .track.is-playing {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent) inset, 0 4px 20px rgba(76, 154, 255, 0.12);
+    }
+
+    .track-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .track-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .remove-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .remove-btn:hover {
+      color: #ff7a7a;
+      border-color: #ff7a7a;
+    }
+
+    .track-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .move-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 13px;
+      line-height: 1.4;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .move-btn:hover:not(:disabled) {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .move-btn:disabled {
+      opacity: .3;
+      cursor: not-allowed;
+    }
+
+    .dup-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 13px;
+      line-height: 1.4;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .dup-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .file-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .drop-hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* highlight a card while dragging an audio file over it */
+    .track.dragover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(76, 154, 255, .35) inset;
+    }
+
+    .waveform {
+      display: block;
+      width: 100%;
+      height: 72px;
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .waveform.hidden {
+      display: none;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: var(--card-2);
+      color: var(--muted);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+
+    .empty-state .empty-icon {
+      font-size: 22px;
+      line-height: 1;
+      opacity: .8;
+    }
+
+    .empty-state .empty-text {
+      font-size: 13.5px;
+    }
+
+    .empty-state .empty-text b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .empty-state.hidden {
+      display: none;
+    }
+
+    .decode-note {
+      border: 1px solid #ff7a7a;
+      background: rgba(255, 122, 122, 0.10);
+      color: #ff9b9b;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13.5px;
+      margin-bottom: 14px;
+    }
+
+    .decode-note.hidden {
+      display: none;
+    }
+
+    .wf-times {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 2px 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wf-times .wf-clip {
+      color: var(--accent);
+    }
+
+    .wf-times.hidden {
+      display: none;
+    }
+
+    input[type="file"] {
+      width: auto;
+      max-width: 100%;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="file"]::file-selector-button {
+      background: var(--card-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 14px;
+      margin-right: 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .field input {
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 14px;
+      width: 110px;
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* invalid clip value: red border + macOS-style shake */
+    .controls input.invalid {
+      border-color: #ff5c5c;
+      color: #ff8b8b;
+      animation: shake 0.35s ease;
+    }
+
+    @keyframes shake {
+
+      10%,
+      90% {
+        transform: translateX(-2px);
+      }
+
+      20%,
+      80% {
+        transform: translateX(3px);
+      }
+
+      30%,
+      50%,
+      70% {
+        transform: translateX(-5px);
+      }
+
+      40%,
+      60% {
+        transform: translateX(5px);
+      }
+    }
+
+    .field.speed input {
+      width: 90px;
+    }
+
+    .field.slider {
+      /* sits right next to Speed and absorbs the leftover width; it can shrink
+         (min-width:0) so the row never wraps and the buttons never move */
+      flex: 1 1 140px;
+      min-width: 0;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .field.slider input[type="range"] {
+      flex: 1;
+      min-width: 0;
+      accent-color: var(--accent);
+      height: 28px;
+      cursor: pointer;
+    }
+
+    .step-btn {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card-2);
+      color: var(--text);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .step-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .step-btn:active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .play-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      /* fixed width so "Play"/"Pause"/"Resume" don't resize and reflow the row */
+      min-width: 132px;
+      white-space: nowrap;
+    }
+
+    .play-btn:hover {
+      background: var(--accent-2);
+    }
+
+    .play-btn.playing {
+      background: var(--ok);
+    }
+
+    .play-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .restart-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      /* match .play-btn exactly so the trio is equal size */
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 132px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .restart-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .restart-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .startover-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 132px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .startover-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .startover-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .loop-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .loop-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .loop-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px dashed var(--line);
+      margin: 18px 0;
+    }
+
+    .add-btn {
+      background: transparent;
+      border: 1px dashed var(--line);
+      color: var(--accent);
+      border-radius: 10px;
+      padding: 12px;
+      width: 100%;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    .add-btn:hover {
+      border-color: var(--accent);
+      background: rgba(76, 154, 255, .06);
+    }
+
+    .footer-bar {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .play-all {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      /* fixed width so Play/Pause/Resume labels don't reflow the row */
+      min-width: 200px;
+      white-space: nowrap;
+    }
+
+    .play-all:hover:not(.playing) {
+      background: var(--accent-2);
+    }
+
+    /* turns green while the sequence is playing (click to pause) */
+    .play-all.playing {
+      background: var(--ok);
+      color: #04120b;
+    }
+
+    .play-all.playing:hover {
+      filter: brightness(1.05);
+    }
+
+    .seq-restart-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .seq-restart-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .download-bar {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .download-btn {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .download-btn:hover:not(:disabled) {
+      background: var(--brand-hover);
+    }
+
+    .download-btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .download-each-btn {
+      background: transparent;
+      border: 1px solid var(--brand);
+      color: var(--brand-text);
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .download-each-btn:hover:not(:disabled) {
+      background: var(--brand-soft);
+    }
+
+    .download-each-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    /* format selector (segmented) */
+    .format-select {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .fmt-btn {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .fmt-btn+.fmt-btn {
+      border-left: 1px solid var(--line);
+    }
+
+    .fmt-btn.active {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    /* smooth-joins row + total duration */
+    .pre-play-row {
+      margin-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .smooth-join {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .smooth-join input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .smooth-join .muted-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .total-dur {
+      font-size: 14px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* export progress bar */
+    .progress-wrap {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .progress-wrap.hidden {
+      display: none;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--brand);
+      transition: width 0.15s ease;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: var(--muted);
+      min-width: 150px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stop-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      margin-left: auto;
+    }
+
+    .note {
+      margin-top: 22px;
+      font-size: 12.5px;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .note code {
+      color: var(--text);
+    }
+
+    .note kbd {
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-size: 12px;
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    .site-footer {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .site-footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .site-footer a:hover {
+      text-decoration: underline;
+    }
+
+    .site-footer .heart {
+      color: #ff5c7a;
+    }
+
+    /* keep the long title clear of the absolute theme toggle */
+    h1 {
+      padding-right: 48px;
+    }
+
+    /* ---- Responsive: narrow screens ---- */
+    @media (max-width: 720px) {
+      body {
+        padding: 20px 12px 60px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .track {
+        padding: 14px;
+      }
+
+      /* let the controls stack instead of overflowing */
+      .controls {
+        flex-wrap: wrap;
+      }
+
+      .field {
+        flex: 1 1 120px;
+      }
+
+      .field input {
+        width: 100%;
+      }
+
+      .field.speed {
+        flex: 0 0 auto;
+      }
+
+      .field.speed input {
+        width: 90px;
+      }
+
+      /* slider and the transport buttons each take a full row */
+      .field.slider {
+        flex: 1 1 100%;
+      }
+
+      .btn-group {
+        flex: 1 1 100%;
+      }
+
+      .play-btn,
+      .restart-btn,
+      .startover-btn {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      /* export row wraps; buttons go full width for easy tapping */
+      .download-btn,
+      .download-each-btn {
+        flex: 1 1 100%;
+      }
+
+      .pre-play-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 460px) {
+      .track-actions .move-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      .play-all,
+      .seq-restart-btn {
+        flex: 1 1 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div id="a11yStatus" class="sr-only" role="status" aria-live="polite"></div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch between light and dark theme"
+      title="Toggle light/dark theme">🌙</button>
+    <h1>Audio Clip &amp; Combine <span class="by">by VenkyB</span></h1>
+    <p class="sub">Add local audio files, set a clip range and speed for each, then play them one by one or all in
+      order.</p>
+
+    <div id="tracks"></div>
+
+    <button class="add-btn" id="addBtn">+ Add another audio file</button>
+
+    <div class="pre-play-row">
+      <label class="smooth-join">
+        <input type="checkbox" id="smoothJoin" />
+        <span>Smooth joins</span>
+        <span class="muted-note">— short cross-fade between clips</span>
+      </label>
+      <span class="total-dur" id="totalDur">Combined length: 0:00</span>
+    </div>
+
+    <div class="footer-bar">
+      <button class="play-all" id="playAllBtn">▶ Play all in order</button>
+      <button class="seq-restart-btn" id="playAllRestartBtn">↺ Restart</button>
+      <span class="hint">Plays each clip back to back at its own speed. Pause to stop.</span>
+    </div>
+
+    <div class="download-bar">
+      <div class="format-select" role="group" aria-label="Download file format">
+        <button type="button" class="fmt-btn active" data-fmt="mp3" aria-pressed="true">.mp3</button>
+        <button type="button" class="fmt-btn" data-fmt="wav" aria-pressed="false">.wav</button>
+      </div>
+      <button class="download-btn" id="downloadBtn">⬇ Download combined audio</button>
+      <button class="download-each-btn" id="downloadEachBtn">⬇ Download each clip</button>
+      <span class="hint">Clips, speeds &amp; merges the files — pitch preserved. MP3 is smaller; WAV is lossless.</span>
+    </div>
+
+    <div class="progress-wrap hidden" id="progressWrap" role="progressbar" aria-label="Export progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <span class="progress-label" id="progressLabel">Preparing…</span>
+    </div>
+
+    <div class="note">
+      Times are <code>MM:SS</code> (e.g. <code>1:05</code>). A lone number counts as minutes,
+      so <code>10</code> becomes <code>10:00</code>. Leave <b>End</b> empty to play to the end.
+      End must be after Start and within the clip length, or the box turns red. Speed keeps the original pitch.
+      This page runs fully in your browser — nothing is uploaded anywhere.
+      <br /><b>Shortcuts:</b> <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> seek (hold <kbd>Shift</kbd> for
+      5s) ·
+      <kbd>[</kbd> set Start to playhead · <kbd>]</kbd> set End to playhead.
+    </div>
+
+    <footer class="site-footer">
+      Built with <a href="https://kiro.dev" target="_blank" rel="noopener">Kiro</a>
+      <span class="heart">♥</span> by <a href="https://www.linkedin.com/in/venkyb27" target="_blank"
+        rel="noopener">Balaji Venkatesh</a>
+    </footer>
+  </div>
+
+  <!-- Offline MP3 encoder (lamejs) for the .mp3 download option -->
+  <script src="lame.min.js"></script>
+  <script>
+    (function () {
+      const tracksEl = document.getElementById('tracks');
+      const addBtn = document.getElementById('addBtn');
+      const playAllBtn = document.getElementById('playAllBtn');
+
+      let counter = 0;
+      const tracks = []; // { id, root, audio, startInput, endInput, speedInput, playBtn }
+
+      // "MM:SS" or "SS" or "H:MM:SS" -> seconds (number). Empty -> null.
+      function parseTime(v) {
+        v = (v || '').trim();
+        if (v === '' || v.toLowerCase() === 'end') return null;
+        const parts = v.split(':').map(Number);
+        if (parts.some(isNaN)) return NaN;
+        if (parts.length === 1) return parts[0];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        return NaN;
+      }
+
+      // Global "Play all in order" sequence state.
+      let seqState = 'idle';   // 'idle' | 'playing' | 'paused'
+      let seqCurrent = null;   // the track currently playing in the sequence
+      let seqRunId = 0;        // token; bumping it invalidates a running loop
+      let sharedCtx = null;
+
+      // Cached waveform colours from the current theme (refreshed on theme change).
+      let themeColors = {};
+      function refreshThemeColors() {
+        const cs = getComputedStyle(document.documentElement);
+        const get = (n, fb) => (cs.getPropertyValue(n).trim() || fb);
+        themeColors = {
+          wave: get('--wave', '#4c9aff'),
+          dim: get('--wave-dim', '#39434f'),
+          playhead: get('--playhead', '#ff5c7a'),
+          marker: get('--marker', '#000'),
+          halo: get('--marker-halo', 'rgba(255,255,255,0.85)'),
+          region: get('--region', 'rgba(76,154,255,0.10)')
+        };
+      }
+      refreshThemeColors();
+
+      // Announce a message to screen readers via the polite live region.
+      function announce(msg) {
+        const el = document.getElementById('a11yStatus');
+        if (!el) return;
+        el.textContent = '';        // reset so identical messages re-announce
+        el.textContent = msg;
+      }
+
+      function getAudioCtx() {
+        if (!sharedCtx) sharedCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return sharedCtx;
+      }
+
+      // Decode the uploaded file and precompute peaks for a small waveform.
+      async function loadWaveform(t, file) {
+        try {
+          const arr = await file.arrayBuffer();
+          // slice(0) hands decodeAudioData its own copy of the buffer.
+          const audioBuf = await getAudioCtx().decodeAudioData(arr.slice(0));
+          const ch = audioBuf.getChannelData(0);
+          const N = 800; // number of vertical bars
+          const block = Math.max(1, Math.floor(ch.length / N));
+          const peaks = new Float32Array(N * 2);
+          for (let i = 0; i < N; i++) {
+            let mn = 1.0, mx = -1.0;
+            const s = i * block, e = Math.min(ch.length, s + block);
+            for (let j = s; j < e; j++) { const v = ch[j]; if (v < mn) mn = v; if (v > mx) mx = v; }
+            if (mn > mx) { mn = 0; mx = 0; }
+            peaks[i * 2] = mn;
+            peaks[i * 2 + 1] = mx;
+          }
+          t.peaks = peaks;
+          t.wfDuration = audioBuf.duration;
+          t.audioBuffer = audioBuf; // kept for export/download
+          t.canvas.classList.remove('hidden');
+          t.timesEl.classList.remove('hidden');
+          if (t.decodeNote) t.decodeNote.classList.add('hidden');
+          drawWaveform(t);
+          updateTimes(t);
+          updateTotalDuration();
+        } catch (err) {
+          // Couldn't decode this file — tell the user instead of failing silently.
+          t.peaks = null;
+          t.audioBuffer = null;
+          t.canvas.classList.add('hidden');
+          t.timesEl.classList.add('hidden');
+          if (t.decodeNote) {
+            t.decodeNote.textContent = '⚠ Couldn\u2019t read this audio file, so it can\u2019t be trimmed, previewed, or exported. Try converting it to MP3 or WAV and re-adding it.';
+            t.decodeNote.classList.remove('hidden');
+          }
+          announce('Audio file ' + t.label + ' could not be decoded. Try MP3 or WAV.');
+        }
+      }
+
+      // Keep speed within the same 0.5–3× range the slider allows.
+      function clampSpeed(v) { return Math.min(3, Math.max(0.5, v)); }
+
+      // Format seconds as M:SS.
+      function fmtTime(s) {
+        if (!isFinite(s) || s < 0) s = 0;
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return m + ':' + String(sec).padStart(2, '0');
+      }
+
+      // Rounded-rect path (fallback for browsers without ctx.roundRect).
+      function roundRect(g, x, y, w, h, r) {
+        r = Math.min(r, w / 2, h / 2);
+        g.beginPath();
+        g.moveTo(x + r, y);
+        g.arcTo(x + w, y, x + w, y + h, r);
+        g.arcTo(x + w, y + h, x, y + h, r);
+        g.arcTo(x, y + h, x, y, r);
+        g.arcTo(x, y, x + w, y, r);
+        g.closePath();
+      }
+
+      // A bold black clip marker: vertical line + arrowhead at top pointing
+      // into the clip (dir = +1 start / -1 end). A light halo keeps it visible
+      // on the dark waveform.
+      function drawClipMarker(g, x, h, dir) {
+        // halo
+        g.strokeStyle = themeColors.halo;
+        g.lineWidth = 5;
+        g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+        // marker line
+        g.strokeStyle = themeColors.marker;
+        g.lineWidth = 3;
+        g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+        // arrowhead
+        const aw = 8, ah = 10;
+        g.fillStyle = themeColors.marker;
+        g.strokeStyle = themeColors.halo;
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(x, 1);
+        g.lineTo(x + dir * aw, 1 + ah / 2);
+        g.lineTo(x, 1 + ah);
+        g.closePath();
+        g.fill();
+        g.stroke();
+        g.lineWidth = 1;
+      }
+
+      // Update the time readouts below the waveform.
+      function updateTimes(t) {
+        if (!t.curEl) return;
+        const dur = t.wfDuration || 0;
+        const sVal = parseTime(t.startInput.value);
+        const s = (sVal > 0 ? sVal : 0);
+        const cur = (t.state !== 'idle') ? t.audio.currentTime : s;
+        t.curEl.textContent = fmtTime(cur);
+        t.durEl.textContent = fmtTime(dur);
+      }
+
+      // Format a time field on blur: a bare number is treated as MINUTES
+      // ("10" -> "10:00"), and partial M:SS values get zero-padded ("1:5" -> "1:05").
+      function normalizeTimeField(input) {
+        const v = input.value.trim();
+        if (v === '' || v.toLowerCase() === 'end') return;
+        if (/^\d+$/.test(v)) { input.value = v + ':00'; return; }
+        const parts = v.split(':');
+        if (parts.length >= 2 && parts.length <= 3 && parts.every(p => /^\d+$/.test(p))) {
+          input.value = parts
+            .map((p, i) => i === 0 ? String(parseInt(p, 10)) : String(parseInt(p, 10)).padStart(2, '0'))
+            .join(':');
+        }
+      }
+
+      // Toggle the red/shake error state on a field (re-triggers the shake).
+      function setFieldError(input, on) {
+        if (on) {
+          input.classList.remove('invalid');
+          void input.offsetWidth; // force reflow so the animation replays
+          input.classList.add('invalid');
+        } else {
+          input.classList.remove('invalid');
+        }
+      }
+
+      // Validate a track's clip range. `which` ('start' | 'end') is the field the
+      // user just committed, used to decide which box to flag on a start/end
+      // conflict. Flags: end <= start, or either value beyond the audio length.
+      function validateClip(t, which) {
+        const dur = t.wfDuration || Infinity;
+        const sVal = parseTime(t.startInput.value);
+        const eVal = parseTime(t.endInput.value);
+        const s = (sVal === null || Number.isNaN(sVal)) ? 0 : sVal;
+        let startBad = false, endBad = false;
+
+        if (Number.isNaN(sVal)) startBad = true;
+        else if (sVal !== null && sVal < 0) startBad = true;         // no negatives
+        else if (sVal !== null && dur !== Infinity && sVal > dur) startBad = true;
+
+        if (eVal !== null) {
+          if (Number.isNaN(eVal)) endBad = true;
+          else if (eVal < 0) endBad = true;                          // no negatives
+          else if (dur !== Infinity && eVal > dur) endBad = true;
+        }
+        if (!startBad && !endBad && eVal !== null && eVal <= s) {
+          if (which === 'start') startBad = true; else endBad = true;
+        }
+
+        setFieldError(t.startInput, startBad);
+        setFieldError(t.endInput, endBad);
+        if (startBad || endBad) {
+          const bad = [];
+          if (startBad) bad.push('Start');
+          if (endBad) bad.push('End');
+          announce('Audio file ' + t.label + ': ' + bad.join(' and ') + ' time is invalid. Please fix the highlighted box.');
+        }
+        if (typeof updateTotalDuration === 'function') updateTotalDuration();
+        return !startBad && !endBad;
+      }
+
+      // Draw enhanced waveform: retina-crisp mirrored bars, clip-region accent,
+      // "played" progress colour, start/end markers, and a playhead.
+      function drawWaveform(t) {
+        const cv = t.canvas;
+        if (!cv || !t.peaks) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const w = cv.clientWidth || 700;
+        const h = 72;
+        const pxW = Math.round(w * dpr);
+        const pxH = Math.round(h * dpr);
+        if (cv.width !== pxW) cv.width = pxW;
+        if (cv.height !== pxH) cv.height = pxH;
+
+        const g = cv.getContext('2d');
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, w, h);
+
+        const mid = h / 2;
+        const dur = t.wfDuration || 1;
+        const sVal = parseTime(t.startInput.value);
+        const eVal = parseTime(t.endInput.value);
+        const sx = ((sVal > 0 ? sVal : 0) / dur) * w;
+        const ex = (eVal === null || Number.isNaN(eVal)) ? w : (eVal / dur) * w;
+        const playX = (t.state !== 'idle') ? (t.audio.currentTime / dur) * w : -1;
+
+        // clip region shading + faint center baseline
+        g.fillStyle = themeColors.region;
+        g.fillRect(sx, 0, Math.max(0, ex - sx), h);
+        g.strokeStyle = 'rgba(128,128,128,0.18)';
+        g.beginPath();
+        g.moveTo(0, mid);
+        g.lineTo(w, mid);
+        g.stroke();
+
+        // mirrored bars with small gaps + rounded caps
+        const N = t.peaks.length / 2;
+        const barW = 2, gap = 1, step = barW + gap;
+        const bars = Math.max(1, Math.floor(w / step));
+        for (let b = 0; b < bars; b++) {
+          const x = b * step;
+          const i = Math.min(N - 1, Math.floor((b / bars) * N));
+          const amp = Math.max(Math.abs(t.peaks[i * 2]), Math.abs(t.peaks[i * 2 + 1]));
+          const barH = Math.max(2, amp * (h * 0.88));
+          const inRegion = x >= sx && x <= ex;
+          // inside the clip = accent, everything else = dim.
+          // (progress is shown by the moving playhead line, not by bar colour)
+          g.fillStyle = inRegion ? themeColors.wave : themeColors.dim;
+          roundRect(g, x, mid - barH / 2, barW, barH, 1);
+          g.fill();
+        }
+
+        // bold black start/end markers, arrowheads pointing into the clip
+        drawClipMarker(g, sx, h, 1);
+        drawClipMarker(g, ex, h, -1);
+
+        // playhead
+        if (playX >= 0) {
+          g.strokeStyle = themeColors.playhead;
+          g.lineWidth = 2;
+          g.beginPath();
+          g.moveTo(playX, 0);
+          g.lineTo(playX, h);
+          g.stroke();
+          g.lineWidth = 1;
+        }
+
+        // hover cursor + time label
+        if (t.hoverTime != null && dur > 0) {
+          const hx = (t.hoverTime / dur) * w;
+          g.strokeStyle = 'rgba(150,150,150,0.7)';
+          g.setLineDash([3, 3]);
+          g.beginPath();
+          g.moveTo(hx, 0);
+          g.lineTo(hx, h);
+          g.stroke();
+          g.setLineDash([]);
+          const label = fmtTime(t.hoverTime);
+          g.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+          const lw = g.measureText(label).width + 8;
+          let lx = hx + 5;
+          if (lx + lw > w) lx = hx - 5 - lw;
+          g.fillStyle = 'rgba(0,0,0,0.72)';
+          g.fillRect(lx, 2, lw, 16);
+          g.fillStyle = '#fff';
+          g.textBaseline = 'middle';
+          g.fillText(label, lx + 4, 11);
+        }
+      }
+
+      function startPlayhead(t) {
+        stopPlayhead(t);
+        const loop = () => {
+          if (t.state !== 'playing') return;
+          drawWaveform(t);
+          updateTimes(t);
+          t.raf = requestAnimationFrame(loop);
+        };
+        t.raf = requestAnimationFrame(loop);
+      }
+
+      function stopPlayhead(t) {
+        if (t.raf) { cancelAnimationFrame(t.raf); t.raf = null; }
+      }
+
+      // Reflect a track's state ('idle' | 'playing' | 'paused') on its buttons.
+      function updateTrackButtons(t) {
+        if (t.state === 'playing') {
+          t.playBtn.textContent = '⏸ Pause';
+          t.playBtn.classList.add('playing');
+        } else if (t.state === 'paused') {
+          t.playBtn.textContent = '▶ Resume';
+          t.playBtn.classList.remove('playing');
+        } else { // idle
+          t.playBtn.textContent = '▶ Play';
+          t.playBtn.classList.remove('playing');
+        }
+        // highlight the card while it's playing or paused
+        t.root.classList.toggle('is-playing', t.state !== 'idle');
+      }
+
+      function detachWatch(t) {
+        if (t._onTime) t.audio.removeEventListener('timeupdate', t._onTime);
+        if (t._onEnd) t.audio.removeEventListener('ended', t._onEnd);
+        t._onTime = null;
+        t._onEnd = null;
+      }
+
+      // Start playing a track's clip from its start. Returns a Promise that
+      // resolves when the clip stops or ends (used by "Play all in order").
+      // Pausing does NOT resolve it; only stop / natural end does.
+      function startTrack(t) {
+        // release any prior awaiter before starting a fresh play
+        if (t.finish) { const f = t.finish; t.finish = null; f(); }
+        return new Promise((resolve) => {
+          if (!t.audio.src) { alert('Audio file ' + t.label + ': please choose a file first.'); resolve(); return; }
+
+          const start = parseTime(t.startInput.value);
+          const end = parseTime(t.endInput.value);
+          const speed = parseFloat(t.speedInput.value);
+
+          if (Number.isNaN(start) || Number.isNaN(end)) { alert('Audio file ' + t.label + ': check the start/end time format.'); resolve(); return; }
+          if (start !== null && end !== null && end <= start) { alert('Audio file ' + t.label + ': end must be after start.'); resolve(); return; }
+
+          t.audio.playbackRate = clampSpeed(speed > 0 ? speed : 1);
+          // keep pitch natural when changing speed (cross-browser flags)
+          t.audio.preservesPitch = true;
+          t.audio.mozPreservesPitch = true;
+          t.audio.webkitPreservesPitch = true;
+
+          const startAt = start || 0;
+          t.stopAt = end; // may be null => play to natural end
+          t.finish = resolve;
+
+          detachWatch(t);
+          t._onTime = () => {
+            if (t.stopAt !== null && t.audio.currentTime >= t.stopAt) {
+              if (t.loop) { try { t.audio.currentTime = startAt; } catch (e) { } }
+              else stopTrack(t);
+            }
+          };
+          t._onEnd = () => {
+            if (t.loop) {
+              try { t.audio.currentTime = startAt; } catch (e) { }
+              t.audio.play().catch(() => { });
+            } else stopTrack(t);
+          };
+          t.audio.addEventListener('timeupdate', t._onTime);
+          t.audio.addEventListener('ended', t._onEnd);
+
+          const begin = () => {
+            try { t.audio.currentTime = startAt; } catch (e) { }
+            t.audio.play().then(() => {
+              t.state = 'playing';
+              updateTrackButtons(t);
+              startPlayhead(t);
+            }).catch(() => stopTrack(t));
+          };
+
+          // Ensure metadata is loaded so currentTime seeking works.
+          if (t.audio.readyState >= 1) begin();
+          else t.audio.addEventListener('loadedmetadata', begin, { once: true });
+        });
+      }
+
+      function pauseTrack(t) {
+        t.audio.pause();
+        t.state = 'paused';
+        stopPlayhead(t);
+        updateTrackButtons(t);
+        drawWaveform(t);
+        updateTimes(t);
+      }
+
+      function resumeTrack(t) {
+        t.audio.play().then(() => {
+          t.state = 'playing';
+          updateTrackButtons(t);
+          startPlayhead(t);
+        }).catch(() => { });
+      }
+
+      function stopTrack(t) {
+        t.audio.pause();
+        detachWatch(t);
+        stopPlayhead(t);
+        const start = parseTime(t.startInput.value);
+        try { t.audio.currentTime = (start > 0 ? start : 0); } catch (e) { }
+        t.state = 'idle';
+        updateTrackButtons(t);
+        drawWaveform(t);
+        updateTimes(t);
+        if (t.finish) { const f = t.finish; t.finish = null; f(); }
+      }
+
+      // Single Play/Pause button behaviour per track. Any per-track control
+      // detaches from a running "Play all" sequence.
+      function togglePlayPause(t) {
+        if (t.state === 'playing') {
+          cancelSequence();
+          pauseTrack(t);
+        } else if (t.state === 'paused') {
+          cancelSequence();
+          resumeTrack(t);
+        } else { // idle -> start fresh; stop anything else first
+          cancelSequence();
+          tracks.forEach(o => { if (o !== t && o.state !== 'idle') stopTrack(o); });
+          startTrack(t);
+        }
+      }
+
+      // Restart: jump back to the clip start and play from there, whatever the
+      // current state (idle / playing / paused).
+      function restartTrack(t) {
+        cancelSequence();
+        tracks.forEach(o => { if (o !== t && o.state !== 'idle') stopTrack(o); });
+        startTrack(t);
+      }
+
+      // Start Over: reset this track to defaults — Start 0:00, End (whole file),
+      // Speed 1.00 — clear any error state, and halt playback.
+      function startOverTrack(t) {
+        cancelSequence();
+        t.startInput.value = '';   // placeholder shows 0:00
+        t.endInput.value = '';     // placeholder shows "end"
+        t.speedInput.value = '1.00';
+        t.speedSlider.value = '1.00';
+        setFieldError(t.startInput, false);
+        setFieldError(t.endInput, false);
+        t.stopAt = null;
+        t.audio.playbackRate = 1;
+        stopTrack(t);              // halts + rewinds to 0 and redraws
+        updateTotalDuration();
+      }
+
+      // ----- Global "Play all in order" sequence controller -----------------
+
+      // Which tracks can actually play (have a file + a valid clip range).
+      function isPlayable(t) {
+        if (!t.audio.src) return false;
+        const s = parseTime(t.startInput.value);
+        const e = parseTime(t.endInput.value);
+        if (Number.isNaN(s) || Number.isNaN(e)) return false;
+        const ss = (s > 0 ? s : 0);
+        if (ss < 0) return false;
+        if (e !== null && e <= ss) return false;
+        return true;
+      }
+
+      function updateGlobalButtons() {
+        if (seqState === 'playing') {
+          playAllBtn.textContent = '⏸ Pause';
+          playAllBtn.classList.add('playing');
+        } else if (seqState === 'paused') {
+          playAllBtn.textContent = '▶ Resume all';
+          playAllBtn.classList.remove('playing');
+        } else {
+          playAllBtn.textContent = '▶ Play all in order';
+          playAllBtn.classList.remove('playing');
+        }
+      }
+
+      // Invalidate any running sequence and reset the global controls to idle.
+      function cancelSequence() {
+        seqRunId++;
+        seqState = 'idle';
+        seqCurrent = null;
+        updateGlobalButtons();
+      }
+
+      // Play each playable clip back-to-back. A run token guards against two
+      // loops running at once (which caused simultaneous playback).
+      async function runSequence() {
+        const myRun = ++seqRunId;
+        tracks.forEach(t => { if (t.state !== 'idle') stopTrack(t); });
+        const list = tracks.filter(isPlayable);
+        if (!list.length) { seqState = 'idle'; updateGlobalButtons(); return; }
+        seqState = 'playing';
+        updateGlobalButtons();
+        for (const t of list) {
+          if (myRun !== seqRunId) return;   // superseded by stop/restart/cancel
+          seqCurrent = t;
+          await startTrack(t);              // resolves when this clip ends OR is stopped
+          if (myRun !== seqRunId) return;
+        }
+        // finished the whole list naturally
+        if (myRun === seqRunId) {
+          seqCurrent = null;
+          seqState = 'idle';
+          updateGlobalButtons();
+        }
+      }
+
+      // Toggle button: idle -> start, playing -> pause, paused -> resume.
+      function togglePlayAll() {
+        if (seqState === 'playing') {
+          if (seqCurrent) pauseTrack(seqCurrent);
+          seqState = 'paused';
+          updateGlobalButtons();
+        } else if (seqState === 'paused') {
+          seqState = 'playing';
+          updateGlobalButtons();
+          if (seqCurrent) resumeTrack(seqCurrent);
+        } else {
+          runSequence();
+        }
+      }
+
+      // Restart the whole sequence from the first clip's start.
+      function restartAll() {
+        tracks.forEach(t => { if (t.state !== 'idle') stopTrack(t); });
+        seqCurrent = null;
+        runSequence();
+      }
+
+      // Stop everything and reset the sequence.
+      function stopAll() {
+        seqRunId++;
+        seqState = 'idle';
+        seqCurrent = null;
+        tracks.forEach(t => { if (t.state !== 'idle') stopTrack(t); });
+        updateGlobalButtons();
+      }
+
+      function makeTrack(saved) {
+        counter += 1;
+        const id = counter;
+        const label = String(id);
+
+        const root = document.createElement('div');
+        root.className = 'track';
+        root.innerHTML = `
+      <div class="track-head">
+        <span class="track-title">Audio file ${label}</span>
+        <div class="track-actions">
+          <button class="move-btn move-up" type="button" title="Move up" aria-label="Move up">↑ Move up</button>
+          <button class="move-btn move-down" type="button" title="Move down" aria-label="Move down">↓ Move down</button>
+          <button class="dup-btn" type="button" title="Duplicate this track" aria-label="Duplicate this track">⧉ Duplicate</button>
+          <button class="remove-btn" type="button">Remove</button>
+        </div>
+      </div>
+      <div class="file-row">
+        <input type="file" accept="audio/*" />
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">🎵</div>
+        <div class="empty-text">No audio yet — <b>choose a file</b> above, or <b>drop one</b> anywhere on this card to get started.</div>
+      </div>
+      <div class="decode-note hidden" role="alert"></div>
+      <canvas class="waveform hidden" role="img" aria-label="Audio waveform for file ${label}. Drag the start and end markers to trim, or drag across to select a region. Use the Start and End boxes below for exact times."></canvas>
+      <div class="wf-times hidden">
+        <span class="wf-cur">0:00</span>
+        <span class="wf-dur">0:00</span>
+      </div>
+      <div class="controls">
+        <div class="field"><label id="lbl-start-${id}">Start (clip)</label><input class="in-start" type="text" placeholder="0:00" aria-labelledby="lbl-start-${id}" inputmode="numeric" /></div>
+        <div class="field"><label id="lbl-end-${id}">End (clip)</label><input class="in-end" type="text" placeholder="end" aria-labelledby="lbl-end-${id}" inputmode="numeric" /></div>
+        <div class="field slider">
+          <label id="lbl-slider-${id}">Drag speed (0.5–3×)</label>
+          <div class="slider-row">
+            <button class="step-btn step-minus" type="button" aria-label="Slower by 0.1×">−</button>
+            <input class="in-slider" type="range" min="0.5" max="3" step="0.05" value="1.0" aria-labelledby="lbl-slider-${id}" />
+            <button class="step-btn step-plus" type="button" aria-label="Faster by 0.1×">+</button>
+          </div>
+        </div>
+        <div class="field speed"><label id="lbl-speed-${id}">Speed ×</label><input class="in-speed" type="text" placeholder="1.00" value="1.00" aria-labelledby="lbl-speed-${id}" inputmode="decimal" /></div>
+        <div class="btn-group">
+          <button class="play-btn" type="button">▶ Play</button>
+          <button class="restart-btn" type="button" disabled>↺ Restart</button>
+          <button class="startover-btn" type="button" disabled>⏮ Start Over</button>
+          <button class="loop-btn" type="button" aria-pressed="false" aria-label="Loop the clip" title="Loop the clip">🔁 Loop</button>
+        </div>
+      </div>
+    `;
+
+        const fileInput = root.querySelector('input[type="file"]');
+        const emptyEl = root.querySelector('.empty-state');
+        const decodeNote = root.querySelector('.decode-note');
+        const canvas = root.querySelector('.waveform');
+        const timesEl = root.querySelector('.wf-times');
+        const curEl = root.querySelector('.wf-cur');
+        const durEl = root.querySelector('.wf-dur');
+        const startInput = root.querySelector('.in-start');
+        const endInput = root.querySelector('.in-end');
+        const speedInput = root.querySelector('.in-speed');
+        const speedSlider = root.querySelector('.in-slider');
+        const minusBtn = root.querySelector('.step-minus');
+        const plusBtn = root.querySelector('.step-plus');
+        const playBtn = root.querySelector('.play-btn');
+        const restartBtn = root.querySelector('.restart-btn');
+        const startOverBtn = root.querySelector('.startover-btn');
+        const loopBtn = root.querySelector('.loop-btn');
+        const upBtn = root.querySelector('.move-up');
+        const downBtn = root.querySelector('.move-down');
+        const removeBtn = root.querySelector('.remove-btn');
+        const audio = new Audio();
+
+        const t = { id, label, root, audio, canvas, decodeNote, timesEl, curEl, durEl, startInput, endInput, speedInput, speedSlider, playBtn, restartBtn, startOverBtn, loopBtn, upBtn, downBtn, loop: false, state: 'idle' };
+
+        // Load a chosen/dropped file into this track.
+        const loadFile = (f) => {
+          if (!f) return;
+          if (audio.src) URL.revokeObjectURL(audio.src);
+          audio.src = URL.createObjectURL(f);
+          audio.load();
+          t.file = f;
+          t.fileName = f.name;
+          emptyEl.classList.add('hidden'); // hide onboarding placeholder
+          restartBtn.disabled = false; // a file is now loaded
+          startOverBtn.disabled = false;
+          loadWaveform(t, f); // decode + draw the small waveform
+        };
+        t.loadFile = loadFile; // exposed so duplicateTrack can reuse it
+        fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+        const dupBtn = root.querySelector('.dup-btn');
+        dupBtn.addEventListener('click', () => duplicateTrack(t));
+
+        // Drag & drop an audio file anywhere on the card.
+        root.addEventListener('dragover', (e) => { e.preventDefault(); root.classList.add('dragover'); });
+        root.addEventListener('dragleave', (e) => { if (e.target === root) root.classList.remove('dragover'); });
+        root.addEventListener('drop', (e) => {
+          e.preventDefault();
+          root.classList.remove('dragover');
+          const f = e.dataTransfer.files && e.dataTransfer.files[0];
+          if (f && (f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac|opus)$/i.test(f.name))) {
+            try { fileInput.files = e.dataTransfer.files; } catch (_) { }
+            loadFile(f);
+          } else if (f) {
+            alert('Please drop an audio file (mp3, wav, m4a, etc.).');
+          }
+        });
+
+        playBtn.addEventListener('click', () => togglePlayPause(t));
+        restartBtn.addEventListener('click', () => restartTrack(t));
+        startOverBtn.addEventListener('click', () => startOverTrack(t));
+        loopBtn.addEventListener('click', () => {
+          t.loop = !t.loop;
+          loopBtn.classList.toggle('active', t.loop);
+          loopBtn.setAttribute('aria-pressed', t.loop ? 'true' : 'false');
+          scheduleSave();
+        });
+        upBtn.addEventListener('click', () => moveTrack(t, -1));
+        downBtn.addEventListener('click', () => moveTrack(t, 1));
+
+        // ----- Waveform mouse interactions --------------------------------
+        // • Drag the start/end markers to trim.
+        // • Click-drag on the body to select a region (sets start AND end).
+        // • A plain click (no drag) seeks the playhead (while playing/paused).
+        const pxToTime = (clientX) => {
+          const rect = canvas.getBoundingClientRect();
+          const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+          return frac * (t.wfDuration || 0);
+        };
+        const clipTimes = () => {
+          const dur = t.wfDuration || 0;
+          const sv = parseTime(startInput.value);
+          const s = (sv > 0 ? sv : 0);
+          const ev2 = parseTime(endInput.value);
+          const e = (ev2 === null || Number.isNaN(ev2)) ? dur : ev2;
+          return { dur, s, e };
+        };
+        let dragMode = null;   // 'start' | 'end' | 'region'
+        let dragMoved = false;
+        let regionAnchor = 0;
+
+        const onDragMove = (ev) => {
+          dragMoved = true;
+          const { dur, s, e } = clipTimes();
+          const time = pxToTime(ev.clientX);
+          if (dragMode === 'start') {
+            const ns = Math.min(time, Math.max(0, e - 0.1));
+            startInput.value = ns <= 0.02 ? '' : fmtTime(ns);
+            setFieldError(startInput, false);
+          } else if (dragMode === 'end') {
+            const ne = Math.max(time, s + 0.1);
+            endInput.value = (ne >= dur - 0.02) ? '' : fmtTime(ne);
+            setFieldError(endInput, false);
+          } else { // region
+            const a = Math.min(regionAnchor, time);
+            const b = Math.max(regionAnchor, time);
+            startInput.value = a <= 0.02 ? '' : fmtTime(a);
+            endInput.value = (b >= dur - 0.02) ? '' : fmtTime(b);
+            setFieldError(startInput, false);
+            setFieldError(endInput, false);
+          }
+          drawWaveform(t);
+          updateTimes(t);
+        };
+
+        const onDragUp = (ev) => {
+          window.removeEventListener('mousemove', onDragMove);
+          window.removeEventListener('mouseup', onDragUp);
+          const mode = dragMode;
+          dragMode = null;
+          if (!dragMoved) {
+            // plain click -> seek if playing/paused
+            if (t.state !== 'idle') {
+              try { t.audio.currentTime = pxToTime(ev.clientX); } catch (e) { }
+              drawWaveform(t);
+              updateTimes(t);
+            }
+            return;
+          }
+          // commit the drag like a typed edit
+          normalizeTimeField(startInput);
+          normalizeTimeField(endInput);
+          validateClip(t, mode === 'start' ? 'start' : 'end');
+          const eVal = parseTime(endInput.value);
+          if (!endInput.classList.contains('invalid') && !Number.isNaN(eVal)) t.stopAt = eVal;
+          // keep the playhead inside the new clip if we're playing/paused
+          if (t.state !== 'idle') {
+            const { s, e } = clipTimes();
+            if (t.audio.currentTime < s || t.audio.currentTime > e) {
+              try { t.audio.currentTime = s; } catch (e) { }
+            }
+          }
+          drawWaveform(t);
+          updateTimes(t);
+        };
+
+        canvas.addEventListener('mousedown', (ev) => {
+          if (!t.peaks) return;
+          ev.preventDefault();
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const { dur, s, e } = clipTimes();
+          const sx = (s / (dur || 1)) * rect.width;
+          const ex = (e / (dur || 1)) * rect.width;
+          const tol = 7;
+          dragMoved = false;
+          if (Math.abs(x - sx) <= tol) dragMode = 'start';
+          else if (Math.abs(x - ex) <= tol) dragMode = 'end';
+          else { dragMode = 'region'; regionAnchor = pxToTime(ev.clientX); }
+          window.addEventListener('mousemove', onDragMove);
+          window.addEventListener('mouseup', onDragUp);
+        });
+
+        // cursor feedback + hover time readout
+        canvas.addEventListener('mousemove', (ev) => {
+          if (dragMode || !t.peaks) return;
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const { dur, s, e } = clipTimes();
+          const sx = (s / (dur || 1)) * rect.width;
+          const ex = (e / (dur || 1)) * rect.width;
+          const near = Math.abs(x - sx) <= 7 || Math.abs(x - ex) <= 7;
+          canvas.style.cursor = near ? 'ew-resize' : 'crosshair';
+          t.hoverTime = pxToTime(ev.clientX);
+          drawWaveform(t);
+        });
+        canvas.addEventListener('mouseleave', () => {
+          if (t.hoverTime == null) return;
+          t.hoverTime = null;
+          drawWaveform(t);
+        });
+
+        // While TYPING: clear that field's error and refresh the visuals only.
+        // The actual playback change + validation happen on commit (blur / Enter),
+        // so half-typed values like "1" -> "1:" -> "1:3" don't jump playback.
+        startInput.addEventListener('input', () => { setFieldError(startInput, false); drawWaveform(t); updateTimes(t); });
+        endInput.addEventListener('input', () => { setFieldError(endInput, false); drawWaveform(t); updateTimes(t); });
+
+        // Commit on blur: normalize -> validate. If the value is invalid
+        // (negative, out of range, or end<=start) the box shakes red AND focus
+        // is trapped in it until the user fixes it. Otherwise apply to playback.
+        const commitStart = () => {
+          normalizeTimeField(startInput);
+          validateClip(t, 'start');
+          if (startInput.classList.contains('invalid')) {
+            setTimeout(() => { startInput.focus(); startInput.select(); }, 0);
+          } else if (t.state !== 'idle') {
+            const s = parseTime(startInput.value);
+            if (!Number.isNaN(s)) { try { t.audio.currentTime = (s > 0 ? s : 0); } catch (e) { } }
+          }
+          drawWaveform(t);
+          updateTimes(t);
+        };
+        const commitEnd = () => {
+          normalizeTimeField(endInput);
+          validateClip(t, 'end');
+          if (endInput.classList.contains('invalid')) {
+            setTimeout(() => { endInput.focus(); endInput.select(); }, 0);
+          } else {
+            const e = parseTime(endInput.value);
+            if (!Number.isNaN(e)) {
+              t.stopAt = e; // the timeupdate watcher reads this live
+              if (t.state === 'playing' && e !== null && t.audio.currentTime >= e) stopTrack(t);
+            }
+          }
+          drawWaveform(t);
+          updateTimes(t);
+        };
+        startInput.addEventListener('blur', commitStart);
+        endInput.addEventListener('blur', commitEnd);
+        startInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); startInput.blur(); } });
+        endInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); endInput.blur(); } });
+
+        // Apply the current speed live if the track is playing (always clamped).
+        const applySpeedLive = () => {
+          if (!t.audio.paused) {
+            const v = parseFloat(speedInput.value);
+            if (v > 0) t.audio.playbackRate = clampSpeed(v);
+          }
+          updateTotalDuration(); // speed changes the combined length
+        };
+
+        // Box -> slider while typing (slider + playback stay within 0.5–3).
+        speedInput.addEventListener('input', () => {
+          const v = parseFloat(speedInput.value);
+          if (v > 0) speedSlider.value = clampSpeed(v);
+          applySpeedLive();
+        });
+
+        // Box commit (blur/Enter): clamp to 0.5–3 and show two decimals
+        // (e.g. "19" -> "3.00", "1" -> "1.00").
+        speedInput.addEventListener('change', () => {
+          let v = parseFloat(speedInput.value);
+          if (!(v > 0)) v = parseFloat(speedSlider.value) || 1;
+          v = clampSpeed(v);
+          speedInput.value = v.toFixed(2);
+          speedSlider.value = v;
+          applySpeedLive();
+        });
+
+        // Slider -> box (two decimals).
+        speedSlider.addEventListener('input', () => {
+          speedInput.value = parseFloat(speedSlider.value).toFixed(2);
+          applySpeedLive();
+        });
+
+        // − / + buttons: nudge by 0.1, clamped to 0.5–3.
+        const stepSpeed = (delta) => {
+          let v = parseFloat(speedInput.value);
+          if (!(v > 0)) v = 1;
+          v = clampSpeed(Math.round((v + delta) * 100) / 100);
+          speedInput.value = v.toFixed(2);
+          speedSlider.value = v;
+          applySpeedLive();
+        };
+        minusBtn.addEventListener('click', () => stepSpeed(-0.1));
+        plusBtn.addEventListener('click', () => stepSpeed(0.1));
+
+        removeBtn.addEventListener('click', () => {
+          audio.pause();
+          detachWatch(t);
+          if (t.finish) { const f = t.finish; t.finish = null; f(); }
+          if (audio.src) URL.revokeObjectURL(audio.src);
+          const i = tracks.indexOf(t);
+          if (i >= 0) tracks.splice(i, 1);
+          root.remove();
+          renderDividers();
+          updateMoveButtons();
+          updateTotalDuration();
+        });
+
+        // Restore saved settings (from a previous session). The file itself
+        // can't be restored, so prompt to re-select it.
+        if (saved) {
+          startInput.value = saved.start || '';
+          endInput.value = saved.end || '';
+          if (saved.speed) { speedInput.value = saved.speed; speedSlider.value = clampSpeed(parseFloat(saved.speed) || 1); }
+          if (saved.loop) {
+            t.loop = true;
+            loopBtn.classList.add('active');
+            loopBtn.setAttribute('aria-pressed', 'true');
+          }
+          if (saved.name) {
+            t.fileName = saved.name;
+            const txt = emptyEl.querySelector('.empty-text');
+            if (txt) txt.innerHTML = 'Last time: <b>' + escapeHtml(saved.name) + '</b> — choose this file again to reload it (your clip &amp; speed are kept).';
+          }
+        }
+
+        tracks.push(t);
+        tracksEl.appendChild(root);
+        renderDividers();
+        updateMoveButtons();
+        return t;
+      }
+
+      // Draw a dashed divider line between tracks (and none after the last).
+      function renderDividers() {
+        tracksEl.querySelectorAll('.divider').forEach(d => d.remove());
+        const cards = Array.from(tracksEl.querySelectorAll('.track'));
+        cards.forEach((c, i) => {
+          if (i < cards.length - 1) {
+            const hr = document.createElement('hr');
+            hr.className = 'divider';
+            c.after(hr);
+          }
+        });
+      }
+
+      // Enable/disable each track's up/down buttons based on its position.
+      function updateMoveButtons() {
+        tracks.forEach((t, i) => {
+          t.upBtn.disabled = (i === 0);
+          t.downBtn.disabled = (i === tracks.length - 1);
+        });
+      }
+
+      // Move a track up (dir = -1) or down (dir = +1); reorders the array,
+      // the DOM, the dividers, and the playback ("Play all in order") sequence.
+      function moveTrack(t, dir) {
+        const i = tracks.indexOf(t);
+        const j = i + dir;
+        if (i < 0 || j < 0 || j >= tracks.length) return;
+        tracks.splice(i, 1);
+        tracks.splice(j, 0, t);
+        // reappend all track cards in the new array order (moves the elements)
+        tracks.forEach(tr => tracksEl.appendChild(tr.root));
+        renderDividers();
+        updateMoveButtons();
+        scheduleSave();
+      }
+
+      // Clone a track (file + clip + speed + loop) into a new track right after it.
+      function duplicateTrack(src) {
+        const nt = makeTrack();
+        nt.startInput.value = src.startInput.value;
+        nt.endInput.value = src.endInput.value;
+        nt.speedInput.value = src.speedInput.value;
+        nt.speedSlider.value = src.speedSlider.value;
+        if (src.loop) {
+          nt.loop = true;
+          nt.loopBtn.classList.add('active');
+          nt.loopBtn.setAttribute('aria-pressed', 'true');
+        }
+        // move the new track from the end to right after the source
+        tracks.splice(tracks.indexOf(nt), 1);
+        tracks.splice(tracks.indexOf(src) + 1, 0, nt);
+        tracks.forEach(tr => tracksEl.appendChild(tr.root));
+        renderDividers();
+        updateMoveButtons();
+        if (src.file) nt.loadFile(src.file); // decode + draw using the copied clip
+        scheduleSave();
+      }
+
+      // Pitch-preserving time stretch via windowed overlap-add (OLA).
+      // `chans` = array of Float32Array (per channel). speed>1 shortens, <1 lengthens.
+      // Frequencies are unchanged (no resampling), so pitch is preserved.
+      function timeStretchOLA(chans, speed, sampleRate) {
+        if (Math.abs(speed - 1) < 1e-3) return chans.map(c => c.slice());
+        const numCh = chans.length;
+        const inLen = chans[0].length;
+        const frame = Math.max(256, Math.round(sampleRate * 0.046)); // ~46ms window
+        const Hs = frame >> 1;                       // synthesis hop (50% overlap)
+        const Ha = Math.max(1, Math.round(Hs * speed)); // analysis hop
+        const outLen = Math.floor(inLen / speed) + frame;
+        const out = [];
+        for (let c = 0; c < numCh; c++) out.push(new Float32Array(outLen));
+        const norm = new Float32Array(outLen);
+        const win = new Float32Array(frame);
+        for (let i = 0; i < frame; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (frame - 1));
+
+        let ap = 0, sp = 0;
+        while (ap + frame < inLen && sp + frame < outLen) {
+          for (let c = 0; c < numCh; c++) {
+            const inp = chans[c], o = out[c];
+            for (let i = 0; i < frame; i++) o[sp + i] += inp[ap + i] * win[i];
+          }
+          for (let i = 0; i < frame; i++) norm[sp + i] += win[i];
+          ap += Ha; sp += Hs;
+        }
+        const finalLen = Math.min(outLen, sp + frame);
+        for (let c = 0; c < numCh; c++) {
+          const o = out[c];
+          for (let i = 0; i < finalLen; i++) if (norm[i] > 1e-6) o[i] /= norm[i];
+          out[c] = o.subarray(0, finalLen);
+        }
+        return out;
+      }
+
+      // Encode stereo Float32 channel data as a 16-bit PCM WAV Blob.
+      function encodeWAV(chans, sampleRate) {
+        const numCh = chans.length;
+        const len = chans[0].length;
+        const blockAlign = numCh * 2;
+        const dataSize = len * blockAlign;
+        const buf = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buf);
+        let p = 0;
+        const str = s => { for (let i = 0; i < s.length; i++) view.setUint8(p++, s.charCodeAt(i)); };
+        const u32 = v => { view.setUint32(p, v, true); p += 4; };
+        const u16 = v => { view.setUint16(p, v, true); p += 2; };
+        str('RIFF'); u32(36 + dataSize); str('WAVE');
+        str('fmt '); u32(16); u16(1); u16(numCh); u32(sampleRate); u32(sampleRate * blockAlign); u16(blockAlign); u16(16);
+        str('data'); u32(dataSize);
+        for (let i = 0; i < len; i++) {
+          for (let c = 0; c < numCh; c++) {
+            let s = Math.max(-1, Math.min(1, chans[c][i]));
+            view.setInt16(p, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            p += 2;
+          }
+        }
+        return new Blob([view], { type: 'audio/wav' });
+      }
+
+      function triggerDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      // Build one track's clipped + speed-adjusted stereo segment [ch0, ch1].
+      // Returns null if the track has no valid clip.
+      function buildOneSegment(t) {
+        const buf = t.audioBuffer;
+        if (!buf) return null;
+        const dur = buf.duration;
+        let s = parseTime(t.startInput.value); s = (s > 0 ? s : 0);
+        let e = parseTime(t.endInput.value);
+        if (e === null || Number.isNaN(e) || e > dur) e = dur;
+        if (Number.isNaN(s) || e <= s) return null;
+        const speed = clampSpeed(parseFloat(t.speedInput.value) || 1);
+        const startS = Math.floor(s * buf.sampleRate);
+        const endS = Math.min(buf.length, Math.floor(e * buf.sampleRate));
+        const ch0 = buf.getChannelData(0).slice(startS, endS);
+        const ch1 = buf.numberOfChannels > 1 ? buf.getChannelData(1).slice(startS, endS) : ch0.slice();
+        return timeStretchOLA([ch0, ch1], speed, buf.sampleRate);
+      }
+
+      function buildSegments() {
+        const segs = [];
+        for (const t of tracks) { const seg = buildOneSegment(t); if (seg) segs.push(seg); }
+        return segs;
+      }
+
+      // Concatenate segments; crossfadeSec > 0 overlaps joins with a linear fade.
+      function concatSegments(segments, sampleRate, crossfadeSec) {
+        const xf = crossfadeSec > 0 ? Math.floor(crossfadeSec * sampleRate) : 0;
+        let total = segments.reduce((a, s) => a + s[0].length, 0) - xf * Math.max(0, segments.length - 1);
+        total = Math.max(1, total);
+        const L = new Float32Array(total), R = new Float32Array(total);
+        let pos = 0;
+        for (let si = 0; si < segments.length; si++) {
+          const sl = segments[si][0], sr = segments[si][1] || segments[si][0];
+          const n = sl.length;
+          if (si === 0 || xf === 0) {
+            L.set(sl, pos); R.set(sr, pos); pos += n;
+          } else {
+            const ov = Math.min(xf, n, pos);
+            const start = pos - ov;
+            for (let i = 0; i < ov; i++) {
+              const f = (i + 1) / (ov + 1);
+              L[start + i] = L[start + i] * (1 - f) + sl[i] * f;
+              R[start + i] = R[start + i] * (1 - f) + sr[i] * f;
+            }
+            L.set(sl.subarray(ov), pos); R.set(sr.subarray(ov), pos);
+            pos += (n - ov);
+          }
+        }
+        return [L.subarray(0, pos), R.subarray(0, pos)];
+      }
+
+      // Encode stereo Float32 -> MP3 Blob (chunked; reports progress 0..1).
+      async function encodeMP3(chans, sampleRate, onProgress) {
+        const enc = new lamejs.Mp3Encoder(2, sampleRate, 192);
+        const len = chans[0].length;
+        const left = new Int16Array(len), right = new Int16Array(len);
+        for (let i = 0; i < len; i++) {
+          let l = Math.max(-1, Math.min(1, chans[0][i])); left[i] = l < 0 ? l * 0x8000 : l * 0x7FFF;
+          let r = Math.max(-1, Math.min(1, chans[1][i])); right[i] = r < 0 ? r * 0x8000 : r * 0x7FFF;
+        }
+        const block = 1152, data = [];
+        for (let i = 0; i < len; i += block) {
+          const buf = enc.encodeBuffer(left.subarray(i, i + block), right.subarray(i, i + block));
+          if (buf.length) data.push(new Int8Array(buf));
+          if ((i / block) % 40 === 0) { if (onProgress) onProgress(i / len); await new Promise(r => setTimeout(r, 0)); }
+        }
+        const end = enc.flush();
+        if (end.length) data.push(new Int8Array(end));
+        return new Blob(data, { type: 'audio/mpeg' });
+      }
+
+      // Encode a stereo segment to the chosen format, returning { blob, ext }.
+      async function encodeSegment(chans, sampleRate, fmt, onProgress) {
+        if (fmt === 'mp3' && window.lamejs && lamejs.Mp3Encoder) {
+          return { blob: await encodeMP3(chans, sampleRate, onProgress), ext: 'mp3' };
+        }
+        if (onProgress) onProgress(0.5);
+        await new Promise(r => setTimeout(r, 0)); // let the bar paint
+        return { blob: encodeWAV(chans, sampleRate), ext: 'wav' };
+      }
+
+      function setProgress(frac, label) {
+        const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
+        progressWrap.classList.remove('hidden');
+        progressWrap.setAttribute('aria-valuenow', String(pct));
+        progressWrap.setAttribute('aria-valuemin', '0');
+        progressWrap.setAttribute('aria-valuemax', '100');
+        progressFill.style.width = pct + '%';
+        if (label != null) progressLabel.textContent = label;
+      }
+      function hideProgress() { progressWrap.classList.add('hidden'); progressFill.style.width = '0%'; }
+      function setExportBusy(b) { downloadBtn.disabled = b; downloadEachBtn.disabled = b; }
+
+      // Merge all clips into one file and download in the chosen format.
+      async function exportCombined() {
+        const segments = buildSegments();
+        if (!segments.length) { alert('Load at least one audio file with a valid clip range to download.'); return; }
+        const sampleRate = getAudioCtx().sampleRate;
+        const merged = concatSegments(segments, sampleRate, smoothJoin.checked ? 0.04 : 0);
+        setExportBusy(true);
+        try {
+          setProgress(0.05, 'Preparing…');
+          await new Promise(r => setTimeout(r, 0));
+          const { blob, ext } = await encodeSegment(merged, sampleRate, outputFormat,
+            (f) => setProgress(0.05 + 0.9 * f, 'Encoding ' + outputFormat.toUpperCase() + '… ' + Math.round(f * 100) + '%'));
+          setProgress(1, 'Done ✓');
+          triggerDownload(blob, 'clip-and-combine.' + ext);
+          announce('Combined ' + ext.toUpperCase() + ' file ready and downloading.');
+        } catch (err) {
+          announce('Download failed.');
+          alert('Sorry, the download failed: ' + err.message);
+        } finally {
+          setExportBusy(false);
+          setTimeout(hideProgress, 800);
+        }
+      }
+
+      // Export each track's clip as its own file (downloaded one after another).
+      async function exportEach() {
+        const list = tracks.filter(isPlayable);
+        if (!list.length) { alert('Load at least one audio file with a valid clip range to download.'); return; }
+        const sampleRate = getAudioCtx().sampleRate;
+        setExportBusy(true);
+        try {
+          for (let i = 0; i < list.length; i++) {
+            const seg = buildOneSegment(list[i]);
+            if (!seg) continue;
+            const label = 'file ' + (i + 1) + ' of ' + list.length;
+            setProgress(i / list.length, 'Exporting ' + label + '…');
+            const { blob, ext } = await encodeSegment(seg, sampleRate, outputFormat,
+              (f) => setProgress((i + f) / list.length, 'Exporting ' + label + '… ' + Math.round(f * 100) + '%'));
+            triggerDownload(blob, 'clip-' + (i + 1) + '.' + ext);
+            await new Promise(r => setTimeout(r, 400)); // stagger the downloads
+          }
+          setProgress(1, 'Done ✓');
+          announce('Exported ' + list.length + ' clip' + (list.length > 1 ? 's' : '') + '.');
+        } catch (err) {
+          announce('Export failed.');
+          alert('Sorry, the export failed: ' + err.message);
+        } finally {
+          setExportBusy(false);
+          setTimeout(hideProgress, 800);
+        }
+      }
+
+      // Combined output length = sum of (clip length / speed) over playable tracks.
+      function computeTotalOutputSeconds() {
+        let total = 0;
+        for (const t of tracks) {
+          if (!isPlayable(t)) continue;
+          const dur = t.wfDuration || 0;
+          const sv = parseTime(t.startInput.value); const s = (sv > 0 ? sv : 0);
+          let e = parseTime(t.endInput.value); if (e === null || Number.isNaN(e) || e > dur) e = dur;
+          const speed = clampSpeed(parseFloat(t.speedInput.value) || 1);
+          total += Math.max(0, (e - s) / speed);
+        }
+        return total;
+      }
+      function updateTotalDuration() {
+        if (totalDurEl) totalDurEl.textContent = 'Combined length: ' + fmtTime(computeTotalOutputSeconds());
+        scheduleSave();
+      }
+
+      // ----- Session persistence (settings only; files can't be stored) -----
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      }
+      let saveTimer = null;
+      function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(persistSession, 300);
+      }
+      function persistSession() {
+        try {
+          const data = tracks.map(t => ({
+            name: t.fileName || '',
+            start: t.startInput.value,
+            end: t.endInput.value,
+            speed: t.speedInput.value,
+            loop: !!t.loop
+          }));
+          localStorage.setItem('cc-session', JSON.stringify(data));
+        } catch (e) { /* storage unavailable / full — ignore */ }
+      }
+      function loadSession() {
+        try {
+          const data = JSON.parse(localStorage.getItem('cc-session') || 'null');
+          if (Array.isArray(data) && data.length) return data;
+        } catch (e) { }
+        return null;
+      }
+
+      const downloadBtn = document.getElementById('downloadBtn');
+      const downloadEachBtn = document.getElementById('downloadEachBtn');
+      const playAllRestartBtn = document.getElementById('playAllRestartBtn');
+      const themeToggle = document.getElementById('themeToggle');
+      const smoothJoin = document.getElementById('smoothJoin');
+      const totalDurEl = document.getElementById('totalDur');
+      const progressWrap = document.getElementById('progressWrap');
+      const progressFill = document.getElementById('progressFill');
+      const progressLabel = document.getElementById('progressLabel');
+      const fmtButtons = Array.from(document.querySelectorAll('.fmt-btn'));
+
+      // Download format: default to MP3 (small & shareable); WAV is lossless.
+      let outputFormat = 'mp3';
+      fmtButtons.forEach(b => b.addEventListener('click', () => {
+        outputFormat = b.dataset.fmt;
+        fmtButtons.forEach(o => {
+          const on = o === b;
+          o.classList.toggle('active', on);
+          o.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      }));
+
+      // ----- Light/dark theme -----------------------------------------------
+      function applyTheme(theme) {
+        if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else document.documentElement.removeAttribute('data-theme');
+        themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
+        refreshThemeColors();
+        tracks.forEach(t => { if (t.peaks) drawWaveform(t); }); // recolour waveforms
+      }
+      let currentTheme = 'dark';
+      try { currentTheme = localStorage.getItem('cc-theme') || 'dark'; } catch (e) { }
+      applyTheme(currentTheme);
+      themeToggle.addEventListener('click', () => {
+        currentTheme = (currentTheme === 'light') ? 'dark' : 'light';
+        try { localStorage.setItem('cc-theme', currentTheme); } catch (e) { }
+        applyTheme(currentTheme);
+      });
+
+      addBtn.addEventListener('click', makeTrack);
+      playAllBtn.addEventListener('click', togglePlayAll);
+      playAllRestartBtn.addEventListener('click', restartAll);
+      downloadBtn.addEventListener('click', exportCombined);
+      downloadEachBtn.addEventListener('click', exportEach);
+
+      // Redraw waveforms when the window resizes (canvas is drawn at the
+      // element's current width, so it must be re-rendered on layout changes).
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          tracks.forEach(t => { if (t.peaks) drawWaveform(t); });
+        }, 120);
+      });
+
+      // ----- Keyboard shortcuts ---------------------------------------------
+      // The "active" track is the one playing/paused, else the one containing
+      // the focused element, else the first track.
+      function getActiveTrack() {
+        let t = tracks.find(x => x.state !== 'idle');
+        if (t) return t;
+        const el = document.activeElement;
+        if (el) { t = tracks.find(x => x.root.contains(el)); if (t) return t; }
+        return tracks[0] || null;
+      }
+
+      document.addEventListener('keydown', (e) => {
+        const tag = (e.target && e.target.tagName || '').toUpperCase();
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+          tag === 'BUTTON' || tag === 'A' || (e.target && e.target.isContentEditable);
+        if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+        const t = getActiveTrack();
+        if (!t) return;
+
+        if (e.code === 'Space') {
+          e.preventDefault();
+          togglePlayPause(t);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          if (t.state === 'idle') return;
+          e.preventDefault();
+          const step = e.shiftKey ? 5 : 2;
+          const dur = t.wfDuration || Infinity;
+          const nt = Math.max(0, Math.min(dur, t.audio.currentTime + (e.key === 'ArrowLeft' ? -step : step)));
+          try { t.audio.currentTime = nt; } catch (_) { }
+          drawWaveform(t);
+          updateTimes(t);
+        } else if (e.key === '[' || e.key === ']') {
+          if (t.state === 'idle') return; // need a playhead position
+          e.preventDefault();
+          const time = t.audio.currentTime;
+          const input = (e.key === '[') ? t.startInput : t.endInput;
+          input.value = fmtTime(time);
+          normalizeTimeField(input);
+          validateClip(t, e.key === '[' ? 'start' : 'end');
+          const eVal = parseTime(t.endInput.value);
+          if (!t.endInput.classList.contains('invalid') && !Number.isNaN(eVal)) t.stopAt = eVal;
+          drawWaveform(t);
+          updateTimes(t);
+          announce((e.key === '[' ? 'Start' : 'End') + ' set to ' + fmtTime(time));
+        }
+      });
+
+      // Restore the previous session's settings if present, else start with two blank tracks.
+      const savedSession = loadSession();
+      if (savedSession) {
+        savedSession.forEach(s => makeTrack(s));
+      } else {
+        makeTrack();
+        makeTrack();
+      }
+      updateTotalDuration();
+    })();
+  </script>
+</body>
+
+</html>
