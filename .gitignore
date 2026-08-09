@@ -10,3 +10,6 @@
 # OS / editor cruft
 .DS_Store
 *.log
+
+# Deployment metadata (bucket / distribution IDs)
+.deploy-info
