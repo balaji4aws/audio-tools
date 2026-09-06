@@ -13,3 +13,6 @@
 
 # Deployment metadata (bucket / distribution IDs)
 .deploy-info
+
+# yt-dlp's own download-tracking state (per-machine, not app source)
+downloads/.download-archive.txt

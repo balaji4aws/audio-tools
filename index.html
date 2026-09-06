@@ -241,11 +241,6 @@
       margin-bottom: 14px;
     }
 
-    .drop-hint {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
     /* highlight a card while dragging an audio file over it */
     .track.dragover {
       border-color: var(--accent);
@@ -321,10 +316,6 @@
       color: var(--muted);
       margin: 0 2px 14px;
       font-variant-numeric: tabular-nums;
-    }
-
-    .wf-times .wf-clip {
-      color: var(--accent);
     }
 
     .wf-times.hidden {
@@ -804,16 +795,6 @@
       color: var(--muted);
       min-width: 150px;
       font-variant-numeric: tabular-nums;
-    }
-
-    .stop-btn {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--text);
-      border-radius: 8px;
-      padding: 11px 18px;
-      font-size: 14px;
-      cursor: pointer;
     }
 
     .hint {
@@ -1565,15 +1546,6 @@
         tracks.forEach(t => { if (t.state !== 'idle') stopTrack(t); });
         seqCurrent = null;
         runSequence();
-      }
-
-      // Stop everything and reset the sequence.
-      function stopAll() {
-        seqRunId++;
-        seqState = 'idle';
-        seqCurrent = null;
-        tracks.forEach(t => { if (t.state !== 'idle') stopTrack(t); });
-        updateGlobalButtons();
       }
 
       function makeTrack(saved) {
