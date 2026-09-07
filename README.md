@@ -129,8 +129,11 @@ Everything client-side lives in a single `index.html` — no framework, no bundl
 - **Speed changes preserve pitch** two different ways depending on context:
   - **Live preview** uses `<audio>`'s native `preservesPitch` (with the vendor-prefixed
     fallbacks browsers still need).
-  - **Export** uses a hand-written windowed **overlap-add (OLA) time-stretch** directly on the
-    decoded PCM data, so the exported file matches what you heard in preview.
+  - **Export** uses a hand-written **WSOLA (Waveform-Similarity Overlap-Add) time-stretch**
+    directly on the decoded PCM data, so the exported file matches what you heard in preview.
+    WSOLA searches a small window around each frame's natural position for the best
+    phase-aligned read offset (via cross-correlation) before overlap-adding it — this avoids the
+    audible beating/warbling that a naive fixed-hop overlap-add produces at many speed ratios.
 - **Export encoding**: WAV is a straightforward 16-bit PCM encode; MP3 uses the bundled
   [`lamejs`](https://github.com/zhuker/lamejs) encoder (a JavaScript port of the LAME encoder),
   chunked with `await`ed yields so the progress bar stays responsive during encoding.
