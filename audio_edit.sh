@@ -29,20 +29,26 @@ set -euo pipefail
 
 die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 
+# Print the leading comment header (the usage block) and exit. Stops at the
+# first non-comment line so the body of the script is never echoed.
 usage() {
-  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0"
   exit "${1:-0}"
 }
 
-# Convert SS | MM:SS | HH:MM:SS -> seconds (float). Prints the number.
+# Convert SS | MM:SS | HH:MM:SS -> seconds (float). Prints the number, or the
+# literal "NaN" if the input isn't a well-formed time. Every colon-separated
+# field must be a plain (optionally fractional) number — awk would otherwise
+# coerce junk like "abc" to 0 and silently accept it.
 to_seconds() {
-  local t="$1"
-  printf '%s' "$t" | awk -F: '{
-    n = NF
-    if (n == 1)      { s = $1 }
-    else if (n == 2) { s = $1*60 + $2 }
-    else if (n == 3) { s = $1*3600 + $2*60 + $3 }
-    else             { print "NaN"; exit }
+  awk -v t="$1" 'BEGIN {
+    n = split(t, p, ":")
+    if (t == "" || n < 1 || n > 3) { print "NaN"; exit }
+    for (i = 1; i <= n; i++)
+      if (p[i] !~ /^[0-9]+(\.[0-9]+)?$/) { print "NaN"; exit }
+    if (n == 1)      s = p[1]
+    else if (n == 2) s = p[1]*60 + p[2]
+    else             s = p[1]*3600 + p[2]*60 + p[3]
     printf "%.6f", s
   }'
 }
@@ -50,9 +56,15 @@ to_seconds() {
 # Build an atempo filter chain for an arbitrary positive speed factor.
 # ffmpeg's atempo accepts 0.5..2.0 per instance, so we decompose larger/
 # smaller factors into a chain (e.g. 3.0 -> atempo=2.0,atempo=1.5).
+#
+# The shape check comes FIRST and is deliberately strict: a non-numeric value
+# compares as a string against the loop bounds, which used to send the halving
+# loop into an unbounded spin (it never converges because "abc"/2 is 0, and
+# 0 < 0.5 forever), hanging the script and eating memory.
 build_atempo() {
   awk -v s="$1" 'BEGIN {
-    if (s <= 0) { print "BAD"; exit }
+    if (s !~ /^[0-9]+(\.[0-9]+)?$/ || s + 0 <= 0) { print "BAD"; exit }
+    s = s + 0
     out = ""
     # factor down toward 1.0 using 2.0 steps while too fast
     while (s > 2.0 + 1e-9) { out = out "atempo=2.0,"; s /= 2.0 }
@@ -111,7 +123,7 @@ for (( g=0; g<NUM_GROUPS; g++ )); do
   [ "$start_s" = "NaN" ] && die "Bad start time '$start' for '$file' (use SS, MM:SS, or HH:MM:SS)."
 
   atempo="$(build_atempo "$speed")"
-  [ "$atempo" = "BAD" ] && die "Bad speed '$speed' for '$file' (must be a positive number)."
+  [ "$atempo" = "BAD" ] && die "Bad speed '$speed' for '$file' (must be a positive decimal number, e.g. 1.0, 1.5, 0.75)."
 
   seg="$WORKDIR/seg_$(printf '%03d' "$g").wav"
 

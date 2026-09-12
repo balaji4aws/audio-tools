@@ -19,14 +19,19 @@ command -v yt-dlp >/dev/null 2>&1 || {
   exit 1
 }
 
-# Browser to pull YouTube login cookies from. We use Chrome.
-BROWSER="${BROWSER:-chrome}"
+# Browser to pull YouTube login cookies from. Defaults to Chrome; override with
+# COOKIE_BROWSER=firefox ./download.sh ...
+#
+# Deliberately NOT named BROWSER: that's a long-standing conventional env var
+# for the user's preferred web browser command (often a path like /usr/bin/open),
+# and inheriting it here would hand yt-dlp a value it can't use.
+COOKIE_BROWSER="${COOKIE_BROWSER:-chrome}"
 
 DEST="downloads"
 mkdir -p "$DEST"
 
 yt-dlp \
-  --cookies-from-browser "$BROWSER" \
+  --cookies-from-browser "$COOKIE_BROWSER" \
   -x --audio-format m4a --audio-quality 0 \
   --sleep-requests 2 --min-sleep-interval 5 --max-sleep-interval 15 \
   --retries 3 --file-access-retries 3 \
