@@ -139,7 +139,32 @@
     .sub {
       color: var(--muted);
       font-size: 16px;
+      margin: 0 0 14px;
+    }
+
+    /* three-step orientation strip under the title, so a first-time visitor can
+       see the whole flow without scrolling to the notes at the bottom */
+    .steps {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
       margin: 0 0 24px;
+      padding: 0;
+      font-size: 13.5px;
+      color: var(--muted);
+    }
+
+    .steps li {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 14px;
+    }
+
+    .steps b {
+      color: var(--text);
+      font-weight: 600;
     }
 
     .track {
@@ -188,6 +213,10 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      /* wrap rather than run off the edge of a narrow card (Remove used to end
+         up off-screen on a phone) */
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .move-btn {
@@ -256,6 +285,9 @@
       border-radius: 8px;
       margin-bottom: 6px;
       cursor: pointer;
+      /* the canvas handles its own drags (trim / region select), so the browser
+         must not claim the gesture for scrolling or pinch-zoom on touch */
+      touch-action: none;
     }
 
     .waveform.hidden {
@@ -311,7 +343,8 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 4px 8px;
       font-size: 12px;
       color: var(--muted);
       margin: 0 2px 14px;
@@ -320,6 +353,20 @@
 
     .wf-times.hidden {
       display: none;
+    }
+
+    /* inline "you can drag this" hint, centred between the two time readouts.
+       Sits inside .wf-times so it appears/disappears with the waveform. */
+    .wf-times .wf-hint {
+      flex: 1 1 auto;
+      min-width: 0;
+      text-align: center;
+      font-variant-numeric: normal;
+    }
+
+    .wf-times .wf-cur,
+    .wf-times .wf-dur {
+      flex: 0 0 auto;
     }
 
     input[type="file"] {
@@ -569,6 +616,21 @@
       background: var(--accent);
       border-color: var(--accent);
       color: #fff;
+    }
+
+    /* One shared box for the whole transport row. Without a fixed height these
+       buttons measured 37/38/40/45px, because each label's emoji (▶ ↺ ⏮ 🔁)
+       inflates its line box by a different amount — the row's tops staggered
+       into a visible staircase. */
+    .play-btn,
+    .restart-btn,
+    .startover-btn,
+    .loop-btn {
+      height: 40px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .divider {
@@ -896,13 +958,26 @@
 
       .btn-group {
         flex: 1 1 100%;
+        flex-wrap: wrap;
       }
 
+      /* 2x2 grid of transport buttons. Loop MUST be in this list — left out, it
+         kept its natural width and pushed itself off the right edge. */
       .play-btn,
       .restart-btn,
-      .startover-btn {
-        flex: 1 1 0;
+      .startover-btn,
+      .loop-btn {
+        flex: 1 1 calc(50% - 4px);
         min-width: 0;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      /* the drag hint gets its own full-width line, so the two time readouts
+         still sit on one line together */
+      .wf-times .wf-hint {
+        order: 3;
+        flex: 0 0 100%;
       }
 
       /* export row wraps; buttons go full width for easy tapping */
@@ -918,7 +993,10 @@
     }
 
     @media (max-width: 460px) {
-      .track-actions .move-btn {
+
+      .track-actions .move-btn,
+      .track-actions .dup-btn,
+      .track-actions .remove-btn {
         padding: 4px 8px;
         font-size: 12px;
       }
@@ -937,8 +1015,14 @@
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch between light and dark theme"
       title="Toggle light/dark theme">🌙</button>
     <h1>Audio Clip &amp; Combine <span class="by">by VenkyB</span></h1>
-    <p class="sub">Add local audio files, set a clip range and speed for each, then play them one by one or all in
-      order.</p>
+    <p class="sub">Trim your audio, change its speed without changing its pitch, and stitch clips together — entirely
+      in your browser. Nothing is uploaded anywhere.</p>
+    <ol class="steps">
+      <li><b>1.</b> Add your audio files</li>
+      <li><b>2.</b> Set each clip's start, end &amp; speed</li>
+      <li><b>3.</b> Play them in order</li>
+      <li><b>4.</b> Download the result</li>
+    </ol>
 
     <div id="tracks"></div>
 
@@ -961,11 +1045,15 @@
 
     <div class="download-bar">
       <div class="format-select" role="group" aria-label="Download file format">
-        <button type="button" class="fmt-btn active" data-fmt="mp3" aria-pressed="true">.mp3</button>
-        <button type="button" class="fmt-btn" data-fmt="wav" aria-pressed="false">.wav</button>
+        <button type="button" class="fmt-btn active" data-fmt="mp3" aria-pressed="true"
+          title="Compressed — smaller file, easy to share">.mp3</button>
+        <button type="button" class="fmt-btn" data-fmt="wav" aria-pressed="false"
+          title="Uncompressed — lossless, much larger file">.wav</button>
       </div>
-      <button class="download-btn" id="downloadBtn">⬇ Download combined audio</button>
-      <button class="download-each-btn" id="downloadEachBtn">⬇ Download each clip</button>
+      <button class="download-btn" id="downloadBtn" title="Merge every clip into one file and download it">⬇ Download
+        combined audio</button>
+      <button class="download-each-btn" id="downloadEachBtn" title="Download each clip as its own separate file">⬇
+        Download each clip</button>
       <span class="hint">Clips, speeds &amp; merges the files — pitch preserved. MP3 is smaller; WAV is lossless.</span>
     </div>
 
@@ -977,10 +1065,17 @@
     </div>
 
     <div class="note">
-      Times are <code>MM:SS</code> (e.g. <code>1:05</code>). A lone number counts as minutes,
-      so <code>10</code> becomes <code>10:00</code>. Leave <b>End</b> empty to play to the end.
-      End must be after Start and within the clip length, or the box turns red. Speed keeps the original pitch.
-      This page runs fully in your browser — nothing is uploaded anywhere.
+      <b>Times</b> are <code>MM:SS</code> (e.g. <code>1:05</code>). A lone number counts as minutes,
+      so <code>10</code> becomes <code>10:00</code> — for ten seconds type <code>0:10</code>. Leave <b>End</b> empty to
+      play to the end. End must be after Start and within the clip length, or the box turns red. Speed keeps the
+      original pitch.
+      <br /><b>Waveform:</b> drag the markers to move Start/End, drag across the middle to select a region, or click to
+      jump the playhead while a clip is playing.
+      <br /><b>Buttons:</b> <b>Restart</b> replays from Start · <b>Start Over</b> resets this clip to the whole file at
+      1× · <b>Loop</b> repeats one clip while you fine-tune it (ignored when playing all in order) · <b>Duplicate</b>
+      copies a track so you can use two ranges from the same file.
+      <br /><b>Export:</b> <b>Download combined audio</b> merges every clip into one file; <b>Download each clip</b>
+      saves them separately. <b>Smooth joins</b> adds a short cross-fade where clips meet.
       <br /><b>Shortcuts:</b> <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> seek (hold <kbd>Shift</kbd> for
       5s) ·
       <kbd>[</kbd> set Start to playhead · <kbd>]</kbd> set End to playhead.
@@ -1344,7 +1439,13 @@
       // Start playing a track's clip from its start. Returns a Promise that
       // resolves when the clip stops or ends (used by "Play all in order").
       // Pausing does NOT resolve it; only stop / natural end does.
-      function startTrack(t) {
+      //
+      // opts.ignoreLoop: treat the track as non-looping for this playthrough.
+      // "Play all in order" sets it, because a looping clip never ends — it
+      // would never resolve, so the sequence would stall on that clip forever
+      // and never reach the tracks after it.
+      function startTrack(t, opts) {
+        const ignoreLoop = !!(opts && opts.ignoreLoop);
         // release any prior awaiter before starting a fresh play
         if (t.finish) { const f = t.finish; t.finish = null; f(); }
         return new Promise((resolve) => {
@@ -1367,15 +1468,17 @@
           t.stopAt = end; // may be null => play to natural end
           t.finish = resolve;
 
+          const shouldLoop = () => t.loop && !ignoreLoop;
+
           detachWatch(t);
           t._onTime = () => {
             if (t.stopAt !== null && t.audio.currentTime >= t.stopAt) {
-              if (t.loop) { try { t.audio.currentTime = startAt; } catch (e) { } }
+              if (shouldLoop()) { try { t.audio.currentTime = startAt; } catch (e) { } }
               else stopTrack(t);
             }
           };
           t._onEnd = () => {
-            if (t.loop) {
+            if (shouldLoop()) {
               try { t.audio.currentTime = startAt; } catch (e) { }
               t.audio.play().catch(() => { });
             } else stopTrack(t);
@@ -1482,6 +1585,12 @@
         return true;
       }
 
+      // Playable AND decoded: export renders from the decoded PCM buffer, which
+      // a file the browser couldn't decode doesn't have.
+      function isExportable(t) {
+        return isPlayable(t) && !!t.audioBuffer;
+      }
+
       function updateGlobalButtons() {
         if (seqState === 'playing') {
           playAllBtn.textContent = '⏸ Pause';
@@ -1515,7 +1624,9 @@
         for (const t of list) {
           if (myRun !== seqRunId) return;   // superseded by stop/restart/cancel
           seqCurrent = t;
-          await startTrack(t);              // resolves when this clip ends OR is stopped
+          // ignoreLoop: a per-track Loop is a preview aid; in a sequence it
+          // would trap the run on one clip forever.
+          await startTrack(t, { ignoreLoop: true }); // resolves when this clip ends OR is stopped
           if (myRun !== seqRunId) return;
         }
         // finished the whole list naturally
@@ -1576,6 +1687,8 @@
       <canvas class="waveform hidden" role="img" aria-label="Audio waveform for file ${label}. Drag the start and end markers to trim, or drag across to select a region. Use the Start and End boxes below for exact times."></canvas>
       <div class="wf-times hidden">
         <span class="wf-cur">0:00</span>
+        <span class="wf-hint" aria-hidden="true">drag the ▮ markers to trim · drag across to select a region · click to
+          seek</span>
         <span class="wf-dur">0:00</span>
       </div>
       <div class="controls">
@@ -1591,10 +1704,11 @@
         </div>
         <div class="field speed"><label id="lbl-speed-${id}">Speed ×</label><input class="in-speed" type="text" placeholder="1.00" value="1.00" aria-labelledby="lbl-speed-${id}" inputmode="decimal" /></div>
         <div class="btn-group">
-          <button class="play-btn" type="button">▶ Play</button>
-          <button class="restart-btn" type="button" disabled>↺ Restart</button>
-          <button class="startover-btn" type="button" disabled>⏮ Start Over</button>
-          <button class="loop-btn" type="button" aria-pressed="false" aria-label="Loop the clip" title="Loop the clip">🔁 Loop</button>
+          <button class="play-btn" type="button" title="Play just this clip (Space)">▶ Play</button>
+          <button class="restart-btn" type="button" title="Play again from the Start time" disabled>↺ Restart</button>
+          <button class="startover-btn" type="button" title="Reset this clip: whole file, speed 1.00×" disabled>⏮ Start Over</button>
+          <button class="loop-btn" type="button" aria-pressed="false" aria-label="Loop the clip"
+            title="Repeat this clip while you fine-tune it (ignored by Play all in order)">🔁 Loop</button>
         </div>
       </div>
     `;
@@ -1669,10 +1783,13 @@
         upBtn.addEventListener('click', () => moveTrack(t, -1));
         downBtn.addEventListener('click', () => moveTrack(t, 1));
 
-        // ----- Waveform mouse interactions --------------------------------
+        // ----- Waveform pointer interactions ------------------------------
         // • Drag the start/end markers to trim.
-        // • Click-drag on the body to select a region (sets start AND end).
-        // • A plain click (no drag) seeks the playhead (while playing/paused).
+        // • Click/press-drag on the body to select a region (sets start AND end).
+        // • A plain click/tap (no drag) seeks the playhead (while playing/paused).
+        //
+        // Pointer events (not mouse events) so touch and pen work too — on a
+        // phone the time boxes were previously the only way to trim.
         const pxToTime = (clientX) => {
           const rect = canvas.getBoundingClientRect();
           const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
@@ -1689,8 +1806,19 @@
         let dragMode = null;   // 'start' | 'end' | 'region'
         let dragMoved = false;
         let regionAnchor = 0;
+        let dragPointerId = null;
+        let dragStartX = 0;
+        // A touch/pen contact is much less precise than a mouse cursor, so give
+        // marker grabs a bigger hit area on those devices.
+        const grabTol = (ev) => (ev.pointerType === 'mouse' ? 7 : 14);
+        // Below this much horizontal travel the gesture counts as a click/tap,
+        // not a drag. Without it, the tiny jitter in a finger tap would be read
+        // as a zero-width region selection (start == end) and flag an error.
+        const dragSlop = (ev) => (ev.pointerType === 'mouse' ? 2 : 6);
 
         const onDragMove = (ev) => {
+          if (dragPointerId !== null && ev.pointerId !== dragPointerId) return;
+          if (!dragMoved && Math.abs(ev.clientX - dragStartX) < dragSlop(ev)) return;
           dragMoved = true;
           const { dur, s, e } = clipTimes();
           const time = pxToTime(ev.clientX);
@@ -1715,8 +1843,11 @@
         };
 
         const onDragUp = (ev) => {
-          window.removeEventListener('mousemove', onDragMove);
-          window.removeEventListener('mouseup', onDragUp);
+          if (dragPointerId !== null && ev.pointerId !== dragPointerId) return;
+          window.removeEventListener('pointermove', onDragMove);
+          window.removeEventListener('pointerup', onDragUp);
+          window.removeEventListener('pointercancel', onDragUp);
+          dragPointerId = null;
           const mode = dragMode;
           dragMode = null;
           if (!dragMoved) {
@@ -1745,37 +1876,44 @@
           updateTimes(t);
         };
 
-        canvas.addEventListener('mousedown', (ev) => {
+        canvas.addEventListener('pointerdown', (ev) => {
           if (!t.peaks) return;
+          if (dragPointerId !== null) return;      // ignore a second finger mid-drag
+          if (ev.button != null && ev.button !== 0) return; // primary button only
           ev.preventDefault();
+          dragPointerId = ev.pointerId;
           const rect = canvas.getBoundingClientRect();
           const x = ev.clientX - rect.left;
           const { dur, s, e } = clipTimes();
           const sx = (s / (dur || 1)) * rect.width;
           const ex = (e / (dur || 1)) * rect.width;
-          const tol = 7;
+          const tol = grabTol(ev);
           dragMoved = false;
+          dragStartX = ev.clientX;
           if (Math.abs(x - sx) <= tol) dragMode = 'start';
           else if (Math.abs(x - ex) <= tol) dragMode = 'end';
           else { dragMode = 'region'; regionAnchor = pxToTime(ev.clientX); }
-          window.addEventListener('mousemove', onDragMove);
-          window.addEventListener('mouseup', onDragUp);
+          window.addEventListener('pointermove', onDragMove);
+          window.addEventListener('pointerup', onDragUp);
+          window.addEventListener('pointercancel', onDragUp);
         });
 
-        // cursor feedback + hover time readout
-        canvas.addEventListener('mousemove', (ev) => {
-          if (dragMode || !t.peaks) return;
+        // cursor feedback + hover time readout (mouse/pen only — a touch has no
+        // hover, and drawing a hover line for it would leave one stuck on screen)
+        canvas.addEventListener('pointermove', (ev) => {
+          if (dragMode || !t.peaks || ev.pointerType === 'touch') return;
           const rect = canvas.getBoundingClientRect();
           const x = ev.clientX - rect.left;
           const { dur, s, e } = clipTimes();
           const sx = (s / (dur || 1)) * rect.width;
           const ex = (e / (dur || 1)) * rect.width;
-          const near = Math.abs(x - sx) <= 7 || Math.abs(x - ex) <= 7;
+          const tol = grabTol(ev);
+          const near = Math.abs(x - sx) <= tol || Math.abs(x - ex) <= tol;
           canvas.style.cursor = near ? 'ew-resize' : 'crosshair';
           t.hoverTime = pxToTime(ev.clientX);
           drawWaveform(t);
         });
-        canvas.addEventListener('mouseleave', () => {
+        canvas.addEventListener('pointerleave', () => {
           if (t.hoverTime == null) return;
           t.hoverTime = null;
           drawWaveform(t);
@@ -1902,6 +2040,7 @@
         tracksEl.appendChild(root);
         renderDividers();
         updateMoveButtons();
+        scheduleSave(); // persist the new track count/order right away
         return t;
       }
 
@@ -2052,6 +2191,7 @@
         // each frame is READ from is refined by the alignment search.
         let ap = 0, sp = 0;
         let prevReadOff = -1;
+        let lastSp = -1;   // synthesis offset of the last frame actually written
         while (ap + frame < inLen && sp + frame < outLen) {
           let readOff;
           if (prevReadOff < 0) {
@@ -2070,10 +2210,15 @@
           for (let i = 0; i < frame; i++) norm[sp + i] += win[i];
 
           prevReadOff = readOff;
+          lastSp = sp;
           ap += Ha;
           sp += Hs;
         }
-        const finalLen = Math.min(outLen, sp + frame);
+        // Trim to where the LAST written frame actually ends. `sp` has already
+        // advanced one synthesis hop past it, so using `sp + frame` appended a
+        // hop's worth (~20ms) of untouched zeros to every stretched clip — an
+        // audible gap at each join in the combined export.
+        const finalLen = lastSp < 0 ? 0 : Math.min(outLen, lastSp + frame);
         for (let c = 0; c < numCh; c++) {
           const o = out[c];
           for (let i = 0; i < finalLen; i++) if (norm[i] > 1e-6) o[i] /= norm[i];
@@ -2145,8 +2290,11 @@
       // Concatenate segments; crossfadeSec > 0 overlaps joins with a linear fade.
       function concatSegments(segments, sampleRate, crossfadeSec) {
         const xf = crossfadeSec > 0 ? Math.floor(crossfadeSec * sampleRate) : 0;
-        let total = segments.reduce((a, s) => a + s[0].length, 0) - xf * Math.max(0, segments.length - 1);
-        total = Math.max(1, total);
+        // Allocate the no-overlap upper bound and trim to the real length at the
+        // end. Each join's actual overlap is min(xf, segment length, written so
+        // far), so pre-subtracting a full xf per join can under-allocate when a
+        // clip is shorter than the cross-fade — which used to overrun the buffer.
+        const total = Math.max(1, segments.reduce((a, s) => a + s[0].length, 0));
         const L = new Float32Array(total), R = new Float32Array(total);
         let pos = 0;
         for (let si = 0; si < segments.length; si++) {
@@ -2237,7 +2385,10 @@
 
       // Export each track's clip as its own file (downloaded one after another).
       async function exportEach() {
-        const list = tracks.filter(isPlayable);
+        // isExportable, not isPlayable: a file that failed to decode has no
+        // audioBuffer to render from. Filtering it out up front keeps the
+        // "file N of M" counter and the clip-N filenames contiguous.
+        const list = tracks.filter(isExportable);
         if (!list.length) { alert('Load at least one audio file with a valid clip range to download.'); return; }
         const sampleRate = getAudioCtx().sampleRate;
         setExportBusy(true);
@@ -2349,7 +2500,9 @@
         applyTheme(currentTheme);
       });
 
-      addBtn.addEventListener('click', makeTrack);
+      // Wrapped, not passed directly: makeTrack's first parameter is the saved
+      // session entry, and handing it a click event instead would be nonsense.
+      addBtn.addEventListener('click', () => makeTrack());
       playAllBtn.addEventListener('click', togglePlayAll);
       playAllRestartBtn.addEventListener('click', restartAll);
       downloadBtn.addEventListener('click', exportCombined);
